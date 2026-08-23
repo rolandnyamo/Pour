@@ -29,9 +29,17 @@ public struct HistoryEntry: Identifiable, Codable, Sendable {
     public let elapsedMS: Int
     public let corrections: [HistoryCorrection]
 
-    public init(text: String, appName: String?, strategy: String, elapsedMS: Int, corrections: [HistoryCorrection]) {
-        id = UUID()
-        date = Date()
+    public init(
+        id: UUID = UUID(),
+        date: Date = Date(),
+        text: String,
+        appName: String?,
+        strategy: String,
+        elapsedMS: Int,
+        corrections: [HistoryCorrection]
+    ) {
+        self.id = id
+        self.date = date
         self.text = text
         self.appName = appName
         self.strategy = strategy

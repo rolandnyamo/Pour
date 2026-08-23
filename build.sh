@@ -61,7 +61,23 @@ cmd_bundle() {
   cp "$BINARY" "$APP/Contents/MacOS/$APP_NAME"
   cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
   cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+  ditto "$ROOT/Sources/DesignKit/Resources/Fonts" "$APP/Contents/Resources/Fonts"
+  # Package dependency resources belong in the standard macOS Resources folder.
+  local resource_bundle bundle_name
+  for resource_bundle in "$ROOT/.build/$CONFIG/"*.bundle; do
+    [[ -d "$resource_bundle" ]] || continue
+    bundle_name="$(basename "$resource_bundle")"
+    [[ "$bundle_name" == "Pour_DesignKit.bundle" ]] && continue
+    ditto "$resource_bundle" "$APP/Contents/Resources/$bundle_name"
+  done
   printf 'APPL????' > "$APP/Contents/PkgInfo"
+}
+
+cmd_verify_bundle() {
+  local fonts="$APP/Contents/Resources/Fonts"
+  [[ -f "$fonts/Inter-Variable.ttf" ]] || die "The app is missing its DesignKit font resources."
+  [[ -f "$fonts/Fraunces-Variable.ttf" ]] || die "The app is missing its DesignKit font resources."
+  [[ -f "$fonts/JetBrainsMono-Variable.ttf" ]] || die "The app is missing its DesignKit font resources."
 }
 
 cmd_sign() {
@@ -84,6 +100,7 @@ cmd_sign() {
 cmd_app() {
   cmd_build
   cmd_bundle
+  cmd_verify_bundle
   cmd_sign
   bold "Built $APP"
 }

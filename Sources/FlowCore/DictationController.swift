@@ -64,9 +64,9 @@ public final class DictationController {
     public var onStateChange: ((DictationState) -> Void)?
     public var onPreviewChange: ((String) -> Void)?
     public var onLevelChange: ((Float) -> Void)?
-    /// Fired after a successful injection: the corrected text, the app it landed in,
-    /// how it got there, the elapsed time, and whatever the correction pass changed.
-    public var onDelivered: ((String, String?, InjectionStrategy, TimeInterval, [CorrectionHit]) -> Void)?
+    /// Fired after a successful injection: the corrected text, the app name and bundle
+    /// identifier it landed in, how it got there, the elapsed time, and corrections.
+    public var onDelivered: ((String, String?, String?, InjectionStrategy, TimeInterval, [CorrectionHit]) -> Void)?
 
     // MARK: Internals
 
@@ -324,7 +324,7 @@ public final class DictationController {
 
         let strategy = TextInjector.insert(corrected, into: target)
         let elapsed = CFAbsoluteTimeGetCurrent() - releasedAt
-        onDelivered?(corrected, target.appName, strategy, elapsed, hits)
+        onDelivered?(corrected, target.appName, target.bundleID, strategy, elapsed, hits)
 
         preview = ""
         state = .idle

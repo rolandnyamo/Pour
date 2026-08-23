@@ -30,7 +30,10 @@ let package = Package(
         .target(name: "InjectKit", swiftSettings: mode),
         .target(
             name: "DesignKit",
-            resources: [.copy("Resources")],
+            // build.sh packages these app resources in Contents/Resources. Keeping
+            // them out of SwiftPM avoids Bundle.module's command-line bundle layout,
+            // which is incompatible with a signed macOS .app.
+            exclude: ["Resources"],
             swiftSettings: mode
         ),
         .target(name: "DictionaryKit", dependencies: ["PrivacyKit"], swiftSettings: mode),
@@ -55,6 +58,12 @@ let package = Package(
             name: "PrivacyChecks",
             dependencies: ["HistoryKit", "PrivacyKit"],
             path: "Tests/PrivacyChecks",
+            swiftSettings: mode
+        ),
+        .executableTarget(
+            name: "UsageStatsChecks",
+            dependencies: ["HistoryKit"],
+            path: "Tests/UsageStatsChecks",
             swiftSettings: mode
         )
     ]

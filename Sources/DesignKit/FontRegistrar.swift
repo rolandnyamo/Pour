@@ -7,9 +7,9 @@ import Foundation
 public enum FontRegistrar {
 
     public static func registerAll() {
-        guard let fontsDirectory = Bundle.module.url(forResource: "Fonts", withExtension: nil, subdirectory: "Resources") else {
-            return
-        }
+        guard let fontsDirectory = Bundle.main.resourceURL?.appendingPathComponent("Fonts", isDirectory: true),
+              FileManager.default.fileExists(atPath: fontsDirectory.path)
+        else { return }
         let names = ["Inter-Variable.ttf", "Fraunces-Variable.ttf", "JetBrainsMono-Variable.ttf"]
         for name in names {
             let url = fontsDirectory.appendingPathComponent(name)

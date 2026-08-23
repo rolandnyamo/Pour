@@ -48,6 +48,9 @@ final class AppModel {
         loaded.launchAtLogin = SMAppService.mainApp.status == .enabled
         settings = loaded
         history = HistoryStore(enabled: loaded.historyEnabled)
+        usageStats.backfillAppUsage(from: history.entries) { appName in
+            InstalledApplicationResolver.application(named: appName)?.bundleIdentifier
+        }
         controller = DictationController(
             dictionary: dictionary,
             hotkeyConfig: loaded.hotkeyConfig,
@@ -68,13 +71,17 @@ final class AppModel {
         controller.onLevelChange = { [weak self] level in
             self?.level = level
         }
-        controller.onDelivered = { [weak self] text, appName, strategy, elapsed, hits in
+        controller.onDelivered = { [weak self] text, appName, bundleIdentifier, strategy, elapsed, hits in
             guard let self else { return }
             // Independent of whether History is enabled — a word count isn't the
             // transcript text itself, and stats shouldn't reset just because
             // someone turned History off.
             let wordCount = text.split(whereSeparator: \.isWhitespace).count
-            self.usageStats.record(wordCount: wordCount)
+            self.usageStats.record(
+                wordCount: wordCount,
+                appBundleIdentifier: bundleIdentifier,
+                appName: appName
+            )
 
             guard let entry = self.history.record(
                 text: text,

@@ -15,6 +15,24 @@ Wispr Flow or Wispr AI.
 - Xcode 26 with the command line tools selected (`sudo xcode-select -s /Applications/Xcode.app`)
 - Apple Silicon
 
+## Install
+
+Run the installer to check this Mac, download Pour's source into a temporary directory, build
+it, install `Pour.app` in `~/Applications`, and launch it:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Brewed-Craig/Pour/main/install.sh | bash
+```
+
+You can [review the installer](install.sh) before running it. The first install downloads and
+compiles Pour's Swift dependencies, so it can take several minutes. The temporary source and
+build files are removed when installation finishes; Xcode is still required because the app is
+built locally. Run the same command again to update or repair the installation.
+
+The installer uses the same signing selection as `build.sh`. Without a Developer ID or the free
+local certificate described below, the build is ad-hoc signed and macOS may ask you to approve
+Pour's permissions again after an update.
+
 ## Build and run
 
 ```sh
@@ -118,6 +136,10 @@ Change the key itself from Settings (click the field, then press a key), or set 
 - Transcripts and target-app names are stored locally in
   `~/Library/Application Support/Pour/history.json` and automatically removed after five days.
   History can be disabled or cleared immediately in Settings.
+- Aggregate usage totals, including the names and bundle identifiers of apps you dictate into,
+  are stored locally in `~/Library/Application Support/Pour/usage-stats.json`.
+  On upgrade, retained history is used to restore app names for existing totals. Usage older than
+  the five-day history window stays under `Unknown App` rather than being assigned incorrectly.
 - History and dictionary files use owner-only permissions; dictionary entries and settings stay
   in the current macOS user account.
 - When direct Accessibility insertion is unavailable, Pour briefly places the transcript on the
@@ -139,6 +161,7 @@ Sources/
   TranscriptionKit/  SpeechEngine protocol + AppleSpeechEngine
   InjectKit/         Accessibility insert → clipboard paste fallback
   DictionaryKit/     personal vocabulary, corrections, and conservative risk warnings
+  HistoryKit/        local transcript history and aggregate usage stats
   DesignKit/         reusable visual components and bundled fonts
 ```
 
@@ -158,6 +181,7 @@ dictation of every session.
 - Menu-bar controls and a configurable push-to-talk hotkey — hold-to-talk or press-to-toggle
 - Live non-activating HUD with a level-reactive waveform
 - Five-day searchable local transcription history
+- Summary stats plus a per-app usage chart with app icons
 - Personal vocabulary and correction dictionary
 - Locale/model picker and settings window
 - Launch at Login (`SMAppService`)
