@@ -5,6 +5,7 @@ import HistoryKit
 import HotkeyKit
 import Observation
 import ParakeetKit
+import RefineKit
 import ServiceManagement
 import TranscriptionKit
 
@@ -35,6 +36,7 @@ final class AppModel {
 
     private var stateObservers: [(DictationState) -> Void] = []
     private var previewObservers: [(String) -> Void] = []
+    private var lastDeliveredHistoryID: UUID?
     /// Fired right after a `HistoryEntry` lands, for the menu bar's "last transcript" line.
     var onDeliveredEntry: ((HistoryEntry) -> Void)?
     /// Fired whenever settings change — the menu bar's "hold ` to dictate" hint needs
@@ -54,9 +56,15 @@ final class AppModel {
         controller = DictationController(
             dictionary: dictionary,
             hotkeyConfig: loaded.hotkeyConfig,
-            locale: Locale(identifier: loaded.localeIdentifier)
+            locale: Locale(identifier: loaded.localeIdentifier),
+            deviceUniqueID: loaded.microphoneDeviceUniqueID
         )
         controller.engineFactory = Self.engineFactory(for: loaded.engineKind)
+        controller.configurationForTarget = { [weak self] bundleIdentifier in
+            let preferences = self?.settings.effectiveRefinementPreferences(for: bundleIdentifier)
+                ?? AppSettings().refinementPreferences
+            return (preferences.accuracyMode.refineValue, preferences.refineConfiguration)
+        }
 
         controller.onStateChange = { [weak self] state in
             guard let self else { return }
@@ -71,7 +79,7 @@ final class AppModel {
         controller.onLevelChange = { [weak self] level in
             self?.level = level
         }
-        controller.onDelivered = { [weak self] text, appName, bundleIdentifier, strategy, elapsed, hits in
+        controller.onDelivered = { [weak self] refinement, text, appName, bundleIdentifier, strategy, elapsed, hits in
             guard let self else { return }
             // Independent of whether History is enabled — a word count isn't the
             // transcript text itself, and stats shouldn't reset just because
@@ -88,9 +96,25 @@ final class AppModel {
                 appName: appName,
                 strategy: strategy.rawValue,
                 elapsedMS: Int((elapsed * 1000).rounded()),
-                hits: hits
+                hits: hits,
+                rawText: refinement.rawText,
+                refinementChanges: refinement.changes.map {
+                    HistoryRefinementChange(
+                        kind: $0.kind.rawValue,
+                        original: $0.original,
+                        replacement: $0.replacement,
+                        rule: $0.rule
+                    )
+                },
+                detectedCommands: refinement.detectedCommands.map(\.rawValue)
             ) else { return }
+            self.lastDeliveredHistoryID = entry.id
             self.onDeliveredEntry?(entry)
+        }
+        controller.onUndo = { [weak self] in
+            guard let self, let id = self.lastDeliveredHistoryID else { return }
+            _ = self.history.markRestored(id: id)
+            self.lastDeliveredHistoryID = nil
         }
     }
 
@@ -166,6 +190,12 @@ final class AppModel {
         settings.save()
     }
 
+    func setMicrophoneDevice(_ uniqueID: String?) {
+        settings.microphoneDeviceUniqueID = uniqueID
+        settings.save()
+        controller.updateMicrophoneDevice(uniqueID)
+    }
+
     func setHistoryEnabled(_ enabled: Bool) {
         settings.historyEnabled = enabled
         settings.save()
@@ -174,5 +204,58 @@ final class AppModel {
 
     func clearHistory() {
         history.clear()
+    }
+
+    @discardableResult
+    func undoLastInsertion() -> Bool {
+        controller.undoLastInsertion()
+    }
+
+    func updateRefinement(_ update: (inout AppSettings) -> Void) {
+        update(&settings)
+        settings.save()
+        onSettingsChanged?(settings)
+    }
+
+    func saveAppProfile(_ profile: AppProfile) {
+        updateRefinement { settings in
+            settings.appProfiles.removeAll { $0.bundleIdentifier == profile.bundleIdentifier }
+            settings.appProfiles.append(profile)
+        }
+    }
+
+    func removeAppProfile(_ profile: AppProfile) {
+        updateRefinement { settings in
+            settings.appProfiles.removeAll { $0.bundleIdentifier == profile.bundleIdentifier }
+        }
+    }
+}
+
+private extension AccuracyMode {
+    var refineValue: RefineKit.AccuracyMode {
+        switch self {
+        case .fast: .fast
+        case .smartLocal: .smartLocal
+        case .accurate: .accurate
+        }
+    }
+}
+
+private extension RefinementPreferences {
+    var refineConfiguration: RefinementConfiguration {
+        let level: RefineKit.CleanupLevel = switch cleanupLevel {
+        case .off: .off
+        case .conservative: .conservative
+        case .balanced: .balanced
+        case .aggressive: .aggressive
+        }
+        return RefinementConfiguration(
+            cleanupLevel: level,
+            fillerRemoval: removeFillers,
+            repetitionCleanup: removeRepetitions,
+            falseStartCleanup: cleanFalseStarts,
+            spokenPunctuation: spokenPunctuation,
+            listFormatting: automaticListFormatting
+        )
     }
 }

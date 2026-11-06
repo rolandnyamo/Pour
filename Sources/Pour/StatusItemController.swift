@@ -21,6 +21,7 @@ final class StatusItemController: NSObject {
     private let hintLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let lastLine = NSMenuItem(title: "No dictation yet", action: nil, keyEquivalent: "")
     private let retryItem = NSMenuItem(title: "Retry Setup", action: #selector(retry), keyEquivalent: "")
+    private let undoItem = NSMenuItem(title: "Undo Last Insertion", action: #selector(undoLast), keyEquivalent: "z")
 
     /// Brand tint per state, from the approved token sheet: Amber while listening,
     /// Blue while working, Green on delivery, Error red when blocked.
@@ -28,6 +29,7 @@ final class StatusItemController: NSObject {
         static let amber = NSColor(PourColor.amber)
         static let blue = NSColor(PourColor.blue500)
         static let green = NSColor(PourColor.success)
+        static let violet = NSColor(PourColor.violet)
         static let red = NSColor(PourColor.error)
     }
 
@@ -54,6 +56,8 @@ final class StatusItemController: NSObject {
         lastLine.isEnabled = false
         retryItem.target = self
         retryItem.isHidden = true
+        undoItem.target = self
+        undoItem.isEnabled = false
 
         hintLine.isEnabled = false
 
@@ -79,6 +83,7 @@ final class StatusItemController: NSObject {
         menu.addItem(settingsItem)
         menu.addItem(lastLine)
         menu.addItem(copyItem)
+        menu.addItem(undoItem)
         menu.addItem(.separator())
         menu.addItem(retryItem)
         menu.addItem(axItem)
@@ -111,6 +116,10 @@ final class StatusItemController: NSObject {
             setSymbol("cup.and.saucer.fill", on: button, tint: Brand.blue, label: "Transcribing")
             statusLine.title = "Transcribing…"
 
+        case .refining:
+            setSymbol("wand.and.sparkles", on: button, tint: Brand.violet, label: "Refining")
+            statusLine.title = "Refining locally…"
+
         case .injecting:
             setSymbol("cup.and.saucer.fill", on: button, tint: Brand.blue, label: "Delivering")
             statusLine.title = "Delivering…"
@@ -138,6 +147,7 @@ final class StatusItemController: NSObject {
         let preview = entry.text.count > 48 ? String(entry.text.prefix(48)) + "…" : entry.text
         let corrected = entry.corrections.isEmpty ? "" : " · \(entry.corrections.count) corrected"
         lastLine.title = "\(preview)\(where_) · \(entry.elapsedMS)ms · \(entry.strategy)\(corrected)"
+        undoItem.isEnabled = true
 
         // A green blink on delivery, then back to the resting cup.
         if let button = statusItem.button {
@@ -182,6 +192,15 @@ final class StatusItemController: NSObject {
         guard !text.isEmpty else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    @objc private func undoLast() {
+        guard model.undoLastInsertion() else {
+            statusLine.title = "Return to the destination app to undo safely."
+            return
+        }
+        undoItem.isEnabled = false
+        statusLine.title = "Restored original app state"
     }
 
     @objc private func openAX() {

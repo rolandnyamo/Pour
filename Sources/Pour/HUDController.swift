@@ -11,14 +11,23 @@ final class HUDController {
 
     private let model: AppModel
     private var panel: NSPanel?
-    private static let size = NSSize(width: 200, height: 84)
+    private static let size = NSSize(width: 280, height: 112)
 
     init(model: AppModel) {
         self.model = model
         model.addStateObserver { [weak self] state in
             switch state {
-            case .capturing: self?.show()
-            default: self?.hide()
+            case .capturing, .finishing, .refining, .injecting:
+                self?.show()
+            case .idle:
+                // Leave a brief, reassuring delivery confirmation without blocking
+                // the next dictation (the controller is already idle).
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+                    guard self?.model.dictationState == .idle else { return }
+                    self?.hide()
+                }
+            default:
+                self?.hide()
             }
         }
     }

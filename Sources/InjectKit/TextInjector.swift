@@ -31,13 +31,38 @@ public enum TextInjector {
     /// Apps whose Accessibility text-setting is unreliable — mostly Chromium and Electron.
     /// These go straight to paste. Grow this list as you find more.
     public static var pasteOnlyBundleIDs: Set<String> = [
+        // Terminal hosts. Their focused text areas often claim that AXSelectedText is
+        // settable and return success while silently discarding the write. That made
+        // terminal programs such as Claude Code look like Pour had delivered text
+        // even though nothing appeared.
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "com.github.wez.wezterm",
+        "com.mitchellh.ghostty",
+        "dev.warp.Warp-Stable",
+        "net.kovidgoyal.kitty",
+        "org.alacritty",
+
+        // Electron code editors and their common release channels.
         "com.microsoft.VSCode",
+        "com.microsoft.VSCodeInsiders",
+        "com.todesktop.230313mzl4w4u92", // Cursor
+        "com.exafunction.windsurf",
+        "ai.deepseek.harness",
         "com.tinyspeck.slackmacgap",
         "notion.id",
         "com.google.Chrome",
         "com.brave.Browser",
         "com.figma.Desktop",
-        "com.hnc.Discord"
+        "com.hnc.Discord",
+        "com.microsoft.teams2",
+        "io.dsh.desktop",
+
+        // Native Cocoa apps with the same silent-discard bug: AXSelectedText reports
+        // settable and the write returns success, but Outlook's rich-text compose
+        // field never applies it. Confirmed 2026-08-31 via history.json — logged
+        // strategy "accessibility" for a delivery the user never saw land.
+        "com.microsoft.Outlook"
     ]
 
     private static let syntheticMarker: Int64 = 0x504F_5552 // "POUR"
@@ -103,13 +128,32 @@ public enum TextInjector {
     public static func insert(_ text: String, into target: InjectionTarget) -> InjectionStrategy {
         guard !text.isEmpty else { return .accessibility }
 
-        let blocked = target.bundleID.map { pasteOnlyBundleIDs.contains($0) } ?? false
+        // Bundle identifiers are documented as case-insensitive. Some third-party
+        // apps do not use stable casing between release channels, so do not let a
+        // casing mismatch put them back on the unreliable Accessibility path.
+        let blocked = target.bundleID.map { bundleID in
+            pasteOnlyBundleIDs.contains { candidate in
+                candidate.caseInsensitiveCompare(bundleID) == .orderedSame
+            }
+        } ?? false
         if !blocked, let element = target.element, setSelectedText(text, on: element) {
             return .accessibility
         }
 
         pasteViaClipboard(text)
         return .paste
+    }
+
+    /// Reverts the most recent insertion using the target application's native undo
+    /// manager. This is deliberately guarded by app identity: sending Command-Z after
+    /// focus has moved could destroy unrelated work in another application.
+    @discardableResult
+    public static func undoLastInsertion(in target: InjectionTarget) -> Bool {
+        guard let bundleID = target.bundleID,
+              NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleID
+        else { return false }
+        postCommandKey(virtualKey: 6) // kVK_ANSI_Z
+        return true
     }
 
     // MARK: - Strategy 1: Accessibility
@@ -185,11 +229,13 @@ public enum TextInjector {
     }
 
     private static func postCommandV() {
-        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
-        let vKey: CGKeyCode = 9 // kVK_ANSI_V
+        postCommandKey(virtualKey: 9) // kVK_ANSI_V
+    }
 
-        let down = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: true)
-        let up = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: false)
+    private static func postCommandKey(virtualKey: CGKeyCode) {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else { return }
+        let down = CGEvent(keyboardEventSource: source, virtualKey: virtualKey, keyDown: true)
+        let up = CGEvent(keyboardEventSource: source, virtualKey: virtualKey, keyDown: false)
         down?.flags = .maskCommand
         up?.flags = .maskCommand
         down?.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)

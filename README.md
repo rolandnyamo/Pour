@@ -185,13 +185,47 @@ dictation of every session.
 - Personal vocabulary and correction dictionary
 - Locale/model picker and settings window
 - Launch at Login (`SMAppService`)
+- Local transcript refinement with filler/repetition cleanup, false-start repair,
+  spoken punctuation, voice commands, list formatting, and literal protection
+- Fast, Accurate, and Smart Local processing modes plus per-app writing profiles
+- Expandable original/refined history, quality signals, and guarded Undo
+
+### Refinement and voice commands
+
+Pour can refine the final on-device transcript before it is inserted. **Accurate** mode
+applies the rules enabled in Settings; **Smart Local** adds contextual cleanup while
+remaining completely on this Mac; **Fast** performs only minimal normalization. Cleanup
+strength and every rule can be changed independently, globally or with per-app profiles.
+
+Safe standalone fillers (`um`, `uh`, `erm`, and `ah`) can be removed without treating
+meaningful words such as “like” or “well” as filler. Pour also understands **new line**,
+**new paragraph**, **bullet point**, **scratch that**, and spoken punctuation such as
+**comma** or **question mark**. Say **literal** before one of these phrases when you want
+the words themselves—for example, “literal question mark.”
+
+History keeps both the original and refined text (when History is enabled), shows each
+change, and lets you copy the original back. **Undo Last Insertion** in the menu bar sends
+Undo only when the original destination app is still focused, preventing accidental edits
+in another app. The Quality tab reports changes, fillers removed, and restores; it does not
+claim a synthetic “accuracy percentage” without a reference transcript.
+
+The deterministic refinement regression corpus lives in `Tests/RefineKitChecks`. Add real
+phrases there whenever a cleanup mistake is found so accuracy changes remain measurable.
+
+### Per-app stats
+
+See where you dictate most across the last 7 days, 30 days, or all time. App stats stay local
+with the rest of Pour's usage data.
+
+![Pour's Apps stats tab showing words dictated in ChatGPT and Google Chrome](Docs/Screenshots/apps-stats.jpg)
 
 ## Possible next steps
 
-- **RefineKit** — the cleanup pass (filler removal, backtrack resolution, list formatting) via
-  a local MLX model, plus personal dictionary and snippets. Hooks in at the marked spot in
-  `DictationController.finishCapture()`.
-- Per-app profiles, an engine picker, and a notarized DMG for distribution beyond your own Mac.
+- Add an optional downloadable MLX language model behind RefineKit's `TranscriptRefiner`
+  protocol for users who want generative rewriting. The built-in Smart Local mode remains
+  deterministic and dependency-free.
+- Grow the recorded evaluation corpus, add pronunciation aliases/snippets, and ship a
+  notarized DMG for distribution beyond your own Mac.
 
 ## Notes
 

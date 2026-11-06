@@ -6,8 +6,22 @@ import SwiftUI
 struct HistoryRowView: View {
     let entry: HistoryEntry
     var onDelete: () -> Void
+    var onRestore: () -> Void
     @State private var showCorrections = false
+    @State private var showRefinement = false
     @State private var didCopy = false
+
+    init(
+        entry: HistoryEntry,
+        onDelete: @escaping () -> Void,
+        onRestore: @escaping () -> Void,
+        showChangesByDefault: Bool = false
+    ) {
+        self.entry = entry
+        self.onDelete = onDelete
+        self.onRestore = onRestore
+        _showRefinement = State(initialValue: showChangesByDefault && !entry.refinementChanges.isEmpty)
+    }
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -67,6 +81,17 @@ struct HistoryRowView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(PourColor.success)
                 }
+                if !entry.refinementChanges.isEmpty {
+                    Button {
+                        withAnimation(PourMotion.animation(.easeOut(duration: PourMotion.fast))) {
+                            showRefinement.toggle()
+                        }
+                    } label: {
+                        Label("\(entry.refinementChanges.count) refined", systemImage: "wand.and.sparkles")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(entry.isRestored ? PourColor.textDim : PourColor.violet)
+                }
             }
             .font(PourFont.mono(10.5))
             .foregroundStyle(PourColor.textDim)
@@ -87,6 +112,46 @@ struct HistoryRowView: View {
                                 .foregroundStyle(PourColor.textDim)
                         }
                         .font(PourFont.mono(11))
+                    }
+                }
+                .padding(PourSpace.sm)
+                .background(PourColor.surfacePanel2)
+                .clipShape(RoundedRectangle(cornerRadius: PourRadius.sm, style: .continuous))
+            }
+
+            if showRefinement {
+                VStack(alignment: .leading, spacing: PourSpace.sm) {
+                    Text("ORIGINAL").font(PourFont.caption()).foregroundStyle(PourColor.textDim)
+                    Text(entry.rawText)
+                        .font(PourFont.mono(11)).foregroundStyle(PourColor.textMuted).textSelection(.enabled)
+
+                    Divider().overlay(PourColor.borderHairline)
+                    ForEach(Array(entry.refinementChanges.enumerated()), id: \.offset) { _, change in
+                        HStack(alignment: .firstTextBaseline, spacing: PourSpace.xs) {
+                            Text(change.original.isEmpty ? "∅" : change.original)
+                                .strikethrough(!change.original.isEmpty).foregroundStyle(PourColor.warning)
+                            Image(systemName: "arrow.right").foregroundStyle(PourColor.textDim)
+                            Text(change.replacement.isEmpty ? "removed" : change.replacement)
+                                .foregroundStyle(PourColor.success)
+                            Spacer()
+                            Text(change.rule).foregroundStyle(PourColor.textDim)
+                        }
+                        .font(PourFont.mono(10.5))
+                    }
+
+                    HStack {
+                        if !entry.detectedCommands.isEmpty {
+                            Text("Commands: \(entry.detectedCommands.joined(separator: ", "))")
+                                .font(PourFont.callout()).foregroundStyle(PourColor.blue400)
+                        }
+                        Spacer()
+                        Button(entry.isRestored ? "Original restored" : "Restore Original") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(entry.rawText, forType: .string)
+                            onRestore()
+                        }
+                        .disabled(entry.isRestored)
+                        .help("Copies the original transcript and records this refinement as reverted")
                     }
                 }
                 .padding(PourSpace.sm)

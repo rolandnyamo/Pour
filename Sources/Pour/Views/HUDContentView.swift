@@ -6,13 +6,36 @@ struct HUDContentView: View {
     let model: AppModel
 
     var body: some View {
-        VStack(spacing: PourSpace.xs) {
-            Waveform(model: model)
-                .frame(height: 42)
+        VStack(alignment: .leading, spacing: PourSpace.xs) {
+            HStack(spacing: PourSpace.xs) {
+                Image(systemName: symbol)
+                    .foregroundStyle(accent)
+                Text(statusTitle)
+                    .font(PourFont.caption())
+                    .foregroundStyle(accent)
+                Spacer()
+                if model.dictationState == .capturing {
+                    Text(microphoneLabel)
+                        .font(PourFont.mono(9.5))
+                        .foregroundStyle(model.level < 0.08 ? PourColor.warning : PourColor.textDim)
+                }
+            }
 
-            Text("Listening\u{2026}")
-                .font(PourFont.caption())
-                .foregroundStyle(PourColor.textMuted)
+            if model.dictationState == .capturing {
+                Waveform(model: model).frame(height: 38)
+                Text(model.preview.isEmpty ? "Speak naturally — say “literal” to protect a command." : model.preview)
+                    .font(PourFont.callout()).foregroundStyle(PourColor.textMuted).lineLimit(2)
+            } else if model.dictationState == .idle {
+                HStack(spacing: PourSpace.xs) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(PourColor.success)
+                    Text("Ready for the next dictation")
+                        .font(PourFont.callout()).foregroundStyle(PourColor.textMuted)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                ProgressView().controlSize(.small).tint(accent).frame(maxWidth: .infinity)
+                Text(detail).font(PourFont.callout()).foregroundStyle(PourColor.textMuted).lineLimit(1)
+            }
         }
         .padding(.horizontal, PourSpace.lg)
         .padding(.vertical, PourSpace.md)
@@ -22,7 +45,52 @@ struct HUDContentView: View {
             RoundedRectangle(cornerRadius: PourRadius.lg, style: .continuous)
                 .strokeBorder(PourColor.borderStrong, lineWidth: PourBorder.hairline)
         )
-        .pourShadow(.glowAmber)
+        .pourShadow(model.dictationState == .capturing ? .glowAmber : .glowBlue)
+    }
+
+    private var statusTitle: String {
+        switch model.dictationState {
+        case .capturing: "Listening"
+        case .finishing: "Transcribing"
+        case .refining: "Refining"
+        case .injecting: "Inserted"
+        default: "Inserted"
+        }
+    }
+
+    private var detail: String {
+        switch model.dictationState {
+        case .finishing: "Finalizing the on-device transcript…"
+        case .refining: "Removing fillers and applying your writing profile…"
+        case .injecting: "Text delivered — use Undo in Pour if it changed too much."
+        default: "Text delivered."
+        }
+    }
+
+    private var accent: Color {
+        switch model.dictationState {
+        case .capturing: PourColor.amber
+        case .finishing: PourColor.blue400
+        case .refining: PourColor.violet
+        case .injecting, .idle: PourColor.success
+        default: PourColor.textMuted
+        }
+    }
+
+    private var symbol: String {
+        switch model.dictationState {
+        case .capturing: "waveform"
+        case .finishing: "text.bubble"
+        case .refining: "wand.and.sparkles"
+        case .injecting, .idle: "checkmark.circle.fill"
+        default: "cup.and.saucer"
+        }
+    }
+
+    private var microphoneLabel: String {
+        if model.level < 0.08 { return "MIC LOW" }
+        if model.level > 0.92 { return "MIC LOUD" }
+        return "MIC GOOD"
     }
 }
 

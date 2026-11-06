@@ -28,9 +28,12 @@ struct TranscriptionsView: View {
                 ScrollView {
                     LazyVStack(spacing: PourSpace.sm) {
                         ForEach(filtered) { entry in
-                            HistoryRowView(entry: entry) {
-                                model.history.delete(entry)
-                            }
+                            HistoryRowView(
+                                entry: entry,
+                                onDelete: { model.history.delete(entry) },
+                                onRestore: { _ = model.history.markRestored(id: entry.id) },
+                                showChangesByDefault: model.settings.showChangesBeforeInsertion
+                            )
                         }
                     }
                     .padding(PourSpace.lg)
@@ -80,6 +83,7 @@ struct TranscriptionsView: View {
         case .idle: idleHotkeyHint
         case .capturing: model.preview.isEmpty ? "Listening\u{2026}" : model.preview
         case .finishing: "Transcribing\u{2026}"
+        case .refining: "Refining locally\u{2026}"
         case .injecting: "Delivering\u{2026}"
         case .blocked(let reason): reason
         }
@@ -91,7 +95,9 @@ struct TranscriptionsView: View {
         case .starting: ("Starting", PourColor.textDim)
         case .idle: ("Ready", PourColor.success)
         case .capturing: ("Listening", PourColor.amber)
-        case .finishing, .injecting: ("Working", PourColor.blue500)
+        case .finishing: ("Transcribing", PourColor.blue500)
+        case .refining: ("Refining", PourColor.violet)
+        case .injecting: ("Inserted", PourColor.success)
         case .blocked: ("Blocked", PourColor.error)
         }
         HStack(spacing: PourSpace.xxs) {

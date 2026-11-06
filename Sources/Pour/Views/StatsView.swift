@@ -8,6 +8,7 @@ struct StatsView: View {
     private enum Section: String, CaseIterable, Identifiable {
         case summary = "Summary"
         case apps = "Apps"
+        case quality = "Quality"
 
         var id: Self { self }
     }
@@ -24,7 +25,7 @@ struct StatsView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 220)
+            .frame(width: 330)
             .padding(.top, PourSpace.md)
             .padding(.bottom, PourSpace.xs)
 
@@ -33,6 +34,8 @@ struct StatsView: View {
                 summaryView
             case .apps:
                 AppsStatsView(store: model.usageStats)
+            case .quality:
+                qualityView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,6 +103,44 @@ struct StatsView: View {
                 .font(PourFont.callout())
                 .foregroundStyle(PourColor.textMuted)
         }
+    }
+
+    private var qualityView: some View {
+        let metrics = model.history.qualityMetrics
+        return ScrollView {
+            VStack(alignment: .leading, spacing: PourSpace.xl) {
+                Text("How Pour changes your speech. A restore is treated as a rejected refinement; no accuracy claim is made without a reference transcript.")
+                    .font(PourFont.callout()).foregroundStyle(PourColor.textMuted)
+
+                HStack(spacing: PourSpace.md) {
+                    qualityCard(value: metrics.refinedEntries.formatted(), label: "refined dictations", color: PourColor.violet)
+                    qualityCard(value: metrics.fillersRemoved.formatted(), label: "fillers removed", color: PourColor.amber)
+                    qualityCard(value: metrics.totalChanges.formatted(), label: "total changes", color: PourColor.blue400)
+                    qualityCard(value: metrics.restoredEntries.formatted(), label: "restored", color: PourColor.warning)
+                }
+
+                VStack(alignment: .leading, spacing: PourSpace.xs) {
+                    Text("ACCEPTED REFINEMENTS").font(PourFont.caption()).foregroundStyle(PourColor.textDim)
+                    ProgressView(value: metrics.acceptanceRate).tint(PourColor.success)
+                    Text(metrics.refinedEntries == 0
+                         ? "Quality signals appear after Pour refines a transcript."
+                         : "\(metrics.acceptedRefinedEntries) of \(metrics.refinedEntries) were not restored.")
+                        .font(PourFont.callout()).foregroundStyle(PourColor.textMuted)
+                }
+                .pourCard(padding: PourSpace.lg)
+            }
+            .padding(PourSpace.lg)
+            .frame(maxWidth: 760, alignment: .leading)
+        }
+    }
+
+    private func qualityCard(value: String, label: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: PourSpace.xxs) {
+            Text(value).font(PourFont.display(24)).foregroundStyle(color)
+            Text(label).font(PourFont.callout()).foregroundStyle(PourColor.textMuted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pourCard(padding: PourSpace.md)
     }
 }
 

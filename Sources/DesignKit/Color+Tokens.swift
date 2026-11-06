@@ -32,6 +32,7 @@ public enum PourColor {
 
     public static let amber = fixed("#FBBF24")
     public static let amberDark = fixed("#B7791F")
+    public static let violet = fixed("#A78BFA")
     public static let crema = fixed("#F7EAD0")
     public static let coffee = fixed("#5B3829")
     public static let espresso = fixed("#2E1A10")

@@ -22,6 +22,7 @@ let package = Package(
         .target(name: "PrivacyKit", swiftSettings: mode),
         .target(name: "AudioCapture", swiftSettings: mode),
         .target(name: "TranscriptionKit", swiftSettings: mode),
+        .target(name: "RefineKit", swiftSettings: mode),
         .target(
             name: "ParakeetKit",
             dependencies: ["TranscriptionKit", .product(name: "FluidAudio", package: "FluidAudio")],
@@ -40,12 +41,12 @@ let package = Package(
         .target(name: "HistoryKit", dependencies: ["DictionaryKit", "PrivacyKit"], swiftSettings: mode),
         .target(
             name: "FlowCore",
-            dependencies: ["HotkeyKit", "AudioCapture", "TranscriptionKit", "InjectKit", "DictionaryKit"],
+            dependencies: ["HotkeyKit", "AudioCapture", "TranscriptionKit", "InjectKit", "DictionaryKit", "RefineKit"],
             swiftSettings: mode
         ),
         .executableTarget(
             name: "Pour",
-            dependencies: ["FlowCore", "DesignKit", "DictionaryKit", "HistoryKit", "TranscriptionKit", "ParakeetKit", "HotkeyKit", "PrivacyKit"],
+            dependencies: ["FlowCore", "AudioCapture", "DesignKit", "DictionaryKit", "HistoryKit", "TranscriptionKit", "ParakeetKit", "HotkeyKit", "PrivacyKit", "RefineKit"],
             swiftSettings: mode
         ),
         .executableTarget(
@@ -64,6 +65,18 @@ let package = Package(
             name: "UsageStatsChecks",
             dependencies: ["HistoryKit"],
             path: "Tests/UsageStatsChecks",
+            swiftSettings: mode
+        ),
+        .executableTarget(
+            name: "RefineKitChecks",
+            dependencies: ["RefineKit"],
+            path: "Tests/RefineKitChecks",
+            swiftSettings: mode
+        ),
+        .executableTarget(
+            name: "HistoryMigrationChecks",
+            dependencies: ["HistoryKit"],
+            path: "Tests/HistoryMigrationChecks",
             swiftSettings: mode
         )
     ]
